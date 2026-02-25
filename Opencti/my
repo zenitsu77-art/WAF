@@ -1,1 +1,37 @@
-hello
+# ========================
+# OpenCTI Admin
+# ========================
+OPENCTI_ADMIN_EMAIL=admin@opencti.test
+OPENCTI_ADMIN_PASSWORD=zenitsu@123
+OPENCTI_ADMIN_TOKEN=
+
+# ========================
+# OpenCTI Access (CRITICAL)
+# ========================
+OPENCTI_HOST=10.10.10.20
+OPENCTI_PORT=8080
+OPENCTI_HEALTHCHECK_ACCESS_KEY=health123
+
+# ========================
+# Elasticsearch
+# ========================
+ELASTIC_MEMORY_SIZE=1g
+
+# ========================
+# MinIO
+# ========================
+MINIO_ROOT_USER=opencti
+MINIO_ROOT_PASSWORD=opencti123
+
+# ========================
+# RabbitMQ
+# ========================
+RABBITMQ_DEFAULT_USER=opencti
+RABBITMQ_DEFAULT_PASS=opencti123
+
+
+# MISP CONNECTOR
+########################
+
+# 🔴 PASTE YOUR REAL MISP API KEY HERE
+MISP_API_KEY=
