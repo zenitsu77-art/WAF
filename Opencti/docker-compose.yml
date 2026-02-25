@@ -1,0 +1,123 @@
+version: '3.8'
+
+services:
+
+  redis:
+    image: redis:8.4.0
+    restart: always
+    volumes:
+      - redisdata:/data
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.9
+    restart: always
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      xpack.ml.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+
+  minio:
+    image: minio/minio:RELEASE.2025-06-13T11-33-47Z
+    restart: always
+    ports:
+      - "9000:9000"
+    volumes:
+      - s3data:/data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    command: server /data
+
+  rabbitmq:
+    image: rabbitmq:4.2-management
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    volumes:
+      - amqpdata:/var/lib/rabbitmq
+
+  opencti:
+    image: opencti/platform:6.9.16
+    restart: always
+    ports:
+      - "${OPENCTI_PORT}:8080"
+    environment:
+      APP__PORT: 8080
+      APP__BASE_URL: http://${OPENCTI_HOST}:${OPENCTI_PORT}
+
+      APP__ADMIN__EMAIL: ${OPENCTI_ADMIN_EMAIL}
+      APP__ADMIN__PASSWORD: ${OPENCTI_ADMIN_PASSWORD}
+      APP__ADMIN__TOKEN: 0ccc5110-dcfa-4357-8de1-fb3c159be524
+
+      REDIS__HOSTNAME: redis
+      REDIS__PORT: 6379
+
+      ELASTICSEARCH__URL: http://elasticsearch:9200
+      ELASTICSEARCH__NUMBER_OF_REPLICAS: 0
+
+      MINIO__ENDPOINT: minio
+      MINIO__PORT: 9000
+      MINIO__USE_SSL: false
+      MINIO__ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO__SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+
+      RABBITMQ__HOSTNAME: rabbitmq
+      RABBITMQ__PORT: 5672
+      RABBITMQ__USERNAME: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ__PASSWORD: ${RABBITMQ_DEFAULT_PASS}
+
+      PROVIDERS__LOCAL__STRATEGY: LocalStrategy
+
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 8080 || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  worker:
+    image: opencti/worker:6.9.16
+    restart: always
+    environment:
+      OPENCTI_URL: http://opencti:8080
+      OPENCTI_TOKEN: 0ccc5110-dcfa-4357-8de1-fb3c159be524
+
+  connector-misp:
+    image: opencti/connector-misp:latest
+    restart: always
+    environment:
+      OPENCTI_URL: http://opencti:8080
+      OPENCTI_TOKEN: 0ccc5110-dcfa-4357-8de1-fb3c159be524
+
+      CONNECTOR_ID: connector-misp-01
+      CONNECTOR_TYPE: EXTERNAL_IMPORT
+      CONNECTOR_NAME: MISP
+      CONNECTOR_SCOPE: misp
+      CONNECTOR_CONFIDENCE_LEVEL: 70
+      CONNECTOR_LOG_LEVEL: info
+      CONNECTOR_STARTUP_DELAY: "90"
+
+      MISP_URL: https://10.10.10.10
+      MISP_KEY: uw4rvWoHVkHwkyiers9WgUuTn2H0Ba1HjW57GTqK
+      MISP_VERIFY_SSL: "false"
+
+      # 🔥 CORRECT HISTORICAL IMPORT PARAMETER
+      MISP_IMPORT_FROM_DATE: "2020-01-01"
+      MISP_IMPORT_TAGS: opencti
+
+volumes:
+  esdata:
+  s3data:
+  redisdata:
+  amqpdata:
