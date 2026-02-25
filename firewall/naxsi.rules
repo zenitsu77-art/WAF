@@ -1,0 +1,6 @@
+BasicRule wl:1000 "rx:Authorization";
+
+BasicRule wl:1000 "str:/servers/";
+BasicRule wl:1000 "str:/users/";
+BasicRule wl:1000 "str:/attributes/";
+BasicRule wl:1000 "str:/events/";

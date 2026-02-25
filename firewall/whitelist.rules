@@ -1,0 +1,14 @@
+# Allow OpenCTI server completely (trusted CTI source)
+BasicRule wl:1000 "mz:$remote_addr" "10.10.10.20";
+
+
+# Classic NAXSI whitelist (compatible)
+
+BasicRule wl:1000 "str:/api/";
+BasicRule wl:1000 "str:/users/login";
+BasicRule wl:1000 "str:/attributes";
+BasicRule wl:1000 "str:/events";
+
+BasicRule wl:1000 "mz:$remote_addr" "10.10.10.20";
+BasicRule wl:1000 "str:/servers";
+BasicRule wl:1000 "str:/servers/getVersion";

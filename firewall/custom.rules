@@ -1,0 +1,160 @@
+##################################
+## CUSTOM NAXSI RULESET
+## IDS >= 1000 (SAFE RANGE)
+##################################
+
+##################################
+## SQL INJECTION SIGNALS
+##################################
+MainRule "str:'"
+         "msg:single quote"
+         "mz:ARGS|BODY|URL"
+         "s:$SQL:4"
+         id:1001;
+
+MainRule "str:--"
+         "msg:sql comment"
+         "mz:ARGS|BODY|URL"
+         "s:$SQL:4"
+         id:1002;
+
+MainRule "str:semicolon"
+         "msg:semicolon"
+         "mz:ARGS|BODY|URL"
+         "s:$SQL:4"
+         id:1007;
+
+# Hex-encoded SQL values (0x27, 0x3d)
+MainRule "str:0x"
+         "msg:hex encoded sql value"
+         "mz:ARGS|BODY|URL"
+         "s:$SQL:4"
+         id:1015;
+
+##################################
+## XSS SIGNALS
+##################################
+MainRule "str:<"
+         "msg:html open"
+         "mz:ARGS|BODY|URL"
+         "s:$XSS:4"
+         id:1302;
+
+MainRule "str:>"
+         "msg:html close"
+         "mz:ARGS|BODY|URL"
+         "s:$XSS:4"
+         id:1303;
+
+MainRule "str:script"
+         "msg:script keyword"
+         "mz:ARGS|BODY|URL"
+         "s:$XSS:8"
+         id:2001;
+
+MainRule "str:onerror"
+         "msg:js handler"
+         "mz:ARGS|BODY|URL"
+         "s:$XSS:8"
+         id:2002;
+
+##################################
+## COMMAND INJECTION SIGNALS
+##################################
+MainRule "str:|"
+         "msg:pipe operator"
+         "mz:ARGS|BODY"
+         "s:$CMD:4"
+         id:3001;
+
+# Command chaining – increased score
+MainRule "str:&&"
+         "msg:command chaining"
+         "mz:ARGS|BODY"
+         "s:$CMD:6"
+         id:3002;
+
+MainRule "str:$( "
+         "msg:command substitution"
+         "mz:ARGS|BODY"
+         "s:$CMD:8"
+         id:3004;
+
+##################################
+## DESERIALIZATION / OBJECT INJECTION
+##################################
+MainRule "str:O:"
+         "msg:php serialized object"
+         "mz:BODY|ARGS"
+         "s:$DESERIALIZE:8"
+         id:4001;
+
+MainRule "str:__wakeup"
+         "msg:php magic method"
+         "mz:BODY|ARGS"
+         "s:$DESERIALIZE:8"
+         id:4002;
+
+##################################
+## TEMPLATE INJECTION SIGNALS
+##################################
+MainRule "str:{{"
+         "msg:template expression open"
+         "mz:ARGS|BODY"
+         "s:$TEMPLATE:6"
+         id:5001;
+
+MainRule "str:}}"
+         "msg:template expression close"
+         "mz:ARGS|BODY"
+         "s:$TEMPLATE:6"
+         id:5002;
+
+##################################
+## API / AUTOMATION ABUSE
+##################################
+MainRule "str:curl"
+         "msg:automation client"
+         "mz:HEADERS"
+         "s:$BOT:4"
+         id:6001;
+
+MainRule "str:wget"
+         "msg:automation client"
+         "mz:HEADERS"
+         "s:$BOT:4"
+         id:6002;
+
+##################################
+## JSON / NoSQL INJECTION
+##################################
+MainRule "str:\"$ne\""
+         "msg:json operator abuse"
+         "mz:BODY"
+         "s:$JSON:8"
+         id:7001;
+
+MainRule "str:\"$gt\""
+         "msg:json operator abuse"
+         "mz:BODY"
+         "s:$JSON:8"
+         id:7002;
+
+##################################
+## DOUBLE ENCODING (EVADE SIGNAL)
+##################################
+MainRule "str:%25"
+         "msg:double encoding marker"
+         "mz:ARGS|URL"
+         "s:$EVADE:4"
+         id:9001;
+
+##################################
+## HEX / ENCODED SQL INDICATORS
+##################################
+MainRule "str:0x"
+         "msg:hex sql encoding"
+         "mz:ARGS|URL"
+         "s:$SQL:4"
+         id:9002;
+

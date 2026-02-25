@@ -1,0 +1,162 @@
+touch user www-data;
+worker_processes auto;
+
+error_log /var/log/nginx/error.log info;
+pid /var/run/nginx.pid;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+
+    # ----------------------------------
+    # BASIC SETTINGS
+    # ----------------------------------
+    include mime.types;
+    default_type application/octet-stream;
+
+    sendfile on;
+    keepalive_timeout 65;
+
+    # ----------------------------------
+    # RATE LIMITING (BEHAVIORAL LAYER)
+    # ----------------------------------
+    # Global IP-based rate limiting
+    limit_req_zone $binary_remote_addr zone=global_limit:10m rate=10r/s;
+
+    # Stricter zone for auth / sensitive endpoints
+    limit_req_zone $binary_remote_addr zone=strict_limit:10m rate=3r/s;
+
+    # ----------------------------------
+    # LOAD NAXSI RULESETS
+    # ----------------------------------
+    include /etc/nginx/naxsi/naxsi_core.rules;
+    include /etc/nginx/naxsi/custom.rules;
+
+    # ----------------------------------
+    # GLOBAL NAXSI DECISION LOGIC
+    # ----------------------------------
+    CheckRule "$SQL >= 8" BLOCK;
+    CheckRule "$XSS >= 8" BLOCK;
+    CheckRule "$TRAVERSAL >= 4" BLOCK;
+    CheckRule "$RFI >= 8" BLOCK;
+    CheckRule "$EVADE >= 4" BLOCK;
+    CheckRule "$CMD >= 8" BLOCK;
+    CheckRule "$DESERIALIZE >= 8" BLOCK;
+    CheckRule "$TEMPLATE >= 8" BLOCK;
+    CheckRule "$JSON >= 8" BLOCK;
+
+    server {
+        listen 80 default_server;
+        server_name localhost;
+
+        root /etc/nginx/html;
+        index index.html index.htm;
+
+        # ----------------------------------
+        # DEFAULT SITE (MODERATE SECURITY)
+        # ----------------------------------
+        location / {
+            limit_req zone=global_limit burst=20 nodelay;
+
+            SecRulesEnabled;
+            DeniedUrl "/RequestDenied";
+
+            LibInjectionSql;
+            LibInjectionXss;
+        }
+
+        # ----------------------------------
+        # DVWA ROOT (LAB – MODERATE)
+        # ----------------------------------
+        location /dvwa {
+            limit_req zone=global_limit burst=15 nodelay;
+
+            root /var/www/html;
+            index index.php index.html;
+
+            SecRulesEnabled;
+            DeniedUrl "/RequestDenied";
+
+            LibInjectionSql;
+            LibInjectionXss;
+        }
+
+        # ----------------------------------
+        # AUTH / LOGIN ENDPOINTS (STRICT)
+        # ----------------------------------
+        location ~* /(login|signin|admin|auth) {
+            limit_req zone=strict_limit burst=5 nodelay;
+
+            SecRulesEnabled;
+            DeniedUrl "/RequestDenied";
+
+            # tighter thresholds only here
+            CheckRule "$SQL >= 4" BLOCK;
+            CheckRule "$XSS >= 4" BLOCK;
+            CheckRule "$CMD >= 4" BLOCK;
+
+            LibInjectionSql;
+            LibInjectionXss;
+        }
+
+        # ----------------------------------
+        # SEARCH / QUERY ENDPOINTS (LOOSER)
+        # ----------------------------------
+        location ~* /(search|query) {
+            limit_req zone=global_limit burst=30;
+
+            SecRulesEnabled;
+            DeniedUrl "/RequestDenied";
+
+            # tolerate noisy input but still protect
+            CheckRule "$SQL >= 12" BLOCK;
+            CheckRule "$XSS >= 12" BLOCK;
+
+            LibInjectionSql;
+            LibInjectionXss;
+        }
+
+        # ----------------------------------
+        # API ENDPOINTS (JSON-AWARE)
+        # ----------------------------------
+        location /api/ {
+            limit_req zone=global_limit burst=20 nodelay;
+
+            SecRulesEnabled;
+            DeniedUrl "/RequestDenied";
+
+            CheckRule "$JSON >= 6" BLOCK;
+            CheckRule "$SQL >= 6" BLOCK;
+
+            LibInjectionSql;
+        }
+
+        # ----------------------------------
+        # PHP HANDLING (MANDATORY)
+        # ----------------------------------
+        location ~ \.php$ {
+            limit_req zone=global_limit burst=10;
+
+            SecRulesEnabled;
+            DeniedUrl "/RequestDenied";
+
+            LibInjectionSql;
+            LibInjectionXss;
+
+            include fastcgi_params;
+            fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+            fastcgi_param SCRIPT_NAME $fastcgi_script_name;
+        }
+
+        # ----------------------------------
+        # BLOCK PAGE (REQUIRED)
+        # ----------------------------------
+        location /RequestDenied {
+            internal;
+            return 403 "Blocked by NAXSI WAF\n";
+        }
+    }
+}
